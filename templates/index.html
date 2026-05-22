@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>타이어 입고등록</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Noto Sans KR', 'Segoe UI', sans-serif;
+            background: #f5f6fa; min-height: 100vh;
+            padding: 32px 24px; color: #2d3436;
+        }
+        .container { max-width: 1600px; margin: 0 auto; }
+        h1 { text-align: center; font-size: 22px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+        .subtitle { text-align: center; color: #636e72; margin-bottom: 24px; font-size: 13px; }
+
+        .flow-diagram {
+            display: flex; align-items: center; justify-content: center;
+            gap: 8px; margin-bottom: 28px; font-size: 13px; color: #636e72; flex-wrap: wrap;
+        }
+        .flow-step { background: #fff; border: 1px solid #dfe6e9; border-radius: 6px; padding: 6px 14px; }
+        .flow-arrow { color: #b2bec3; }
+
+        .upload-area {
+            border: 2px dashed #74b9ff; border-radius: 12px;
+            background: #fff; padding: 40px 24px;
+            text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 20px;
+        }
+        .upload-area:hover, .upload-area.drag-over { border-color: #0984e3; background: #f0f8ff; }
+        .upload-icon { font-size: 44px; margin-bottom: 10px; }
+        .upload-text { color: #636e72; font-size: 14px; }
+        .upload-text strong { color: #0984e3; }
+        .file-info { margin-top: 8px; color: #00b894; font-size: 13px; font-weight: 600; }
+        #fileInput { display: none; }
+
+        .action-row { display: flex; justify-content: center; margin-bottom: 20px; }
+        .btn-primary {
+            background: #0984e3; color: white; border: none;
+            border-radius: 8px; padding: 12px 40px;
+            font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+        }
+        .btn-primary:hover { background: #0773c5; }
+        .btn-primary:disabled { background: #b2bec3; cursor: not-allowed; }
+
+        .btn-download {
+            background: #00b894; color: white; border: none;
+            border-radius: 8px; padding: 9px 22px;
+            font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+        }
+        .btn-download:hover { background: #00a381; }
+
+        .status { text-align: center; color: #636e72; font-size: 14px; margin-bottom: 12px; min-height: 20px; }
+        .status.loading { color: #0984e3; }
+        .status.error { color: #d63031; }
+
+        .warnings {
+            background: #ffeaa7; border: 1px solid #fdcb6e;
+            border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;
+        }
+        .warnings h3 { color: #e17055; font-size: 14px; margin-bottom: 4px; }
+        .warnings ul { color: #636e72; font-size: 13px; padding-left: 16px; }
+
+        .summary { display: flex; gap: 16px; margin-bottom: 16px; }
+        .summary-card {
+            background: #fff; border: 1px solid #dfe6e9;
+            border-radius: 8px; padding: 14px 20px; flex: 1; text-align: center;
+        }
+        .summary-card .label { font-size: 12px; color: #636e72; margin-bottom: 4px; }
+        .summary-card .value { font-size: 20px; font-weight: 700; color: #2d3436; }
+
+        .table-section { display: none; }
+        .table-header {
+            display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 10px;
+        }
+        .table-title { font-size: 15px; font-weight: 600; }
+        .edit-hint { font-size: 12px; color: #636e72; font-weight: normal; margin-left: 8px; }
+
+        .table-wrapper {
+            overflow-x: auto; background: #fff;
+            border-radius: 8px; border: 1px solid #dfe6e9; margin-bottom: 14px;
+        }
+        table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+        thead th {
+            background: #2d3436; color: #fff;
+            padding: 9px 8px; text-align: center;
+            white-space: nowrap; font-weight: 600; position: sticky; top: 0; z-index: 1;
+        }
+        tbody tr:nth-child(even) { background: #f8f9fa; }
+        tbody tr:hover { background: #e8f4fd; }
+        tbody td {
+            padding: 7px 8px; text-align: center;
+            border-bottom: 1px solid #f1f3f5; white-space: nowrap; min-width: 60px;
+        }
+        tbody td[contenteditable="true"] { cursor: text; outline: none; }
+        tbody td[contenteditable="true"]:hover:not(:focus) { background: #ffeaa7 !important; }
+        tbody td[contenteditable="true"]:focus {
+            background: #fff8e1 !important;
+            outline: 2px solid #fdcb6e; outline-offset: -2px;
+        }
+
+        .pagination {
+            display: flex; justify-content: center;
+            align-items: center; gap: 6px; margin-top: 12px; flex-wrap: wrap;
+        }
+        .page-btn {
+            background: #fff; border: 1px solid #dfe6e9;
+            border-radius: 6px; padding: 5px 11px;
+            cursor: pointer; font-size: 13px; transition: all 0.2s;
+        }
+        .page-btn:hover:not(:disabled) { background: #0984e3; color: white; border-color: #0984e3; }
+        .page-btn:disabled { color: #b2bec3; cursor: not-allowed; }
+        .page-btn.active { background: #0984e3; color: white; border-color: #0984e3; }
+        .page-info { font-size: 13px; color: #636e72; margin-left: 8px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📦 타이어 입고등록</h1>
+    <p class="subtitle">CSV 파일을 업로드하면 더존 입고 형식으로 변환됩니다</p>
+
+    <div class="flow-diagram">
+        <div class="flow-step">📂 CSV 업로드</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">⚙️ 더존 변환</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">✏️ 미리보기 / 편집</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">📥 엑셀 다운로드</div>
+    </div>
+
+    <div class="upload-area" id="dropZone">
+        <div class="upload-icon">📂</div>
+        <div class="upload-text"><strong>클릭</strong>하거나 파일을 여기에 끌어다 놓으세요</div>
+        <div class="upload-text" style="margin-top:4px;font-size:13px;">.csv, .xlsx 파일 지원</div>
+        <div class="file-info" id="fileInfo"></div>
+    </div>
+    <input type="file" id="fileInput" accept=".csv,.xlsx">
+
+    <div class="action-row">
+        <button class="btn-primary" id="convertBtn" disabled>변환</button>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div class="table-section" id="tableSection">
+        <div id="warningsArea"></div>
+
+        <div class="summary">
+            <div class="summary-card">
+                <div class="label">총 건수</div>
+                <div class="value" id="totalCount">-</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">총 수량 (PO_QT)</div>
+                <div class="value" id="totalQty">-</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">총 금액 (RCVH_AM)</div>
+                <div class="value" id="totalAmount">-</div>
+            </div>
+        </div>
+
+        <div class="table-header">
+            <div class="table-title">
+                미리보기
+                <span class="edit-hint">✏️ 셀을 클릭하면 직접 수정할 수 있습니다</span>
+            </div>
+            <button class="btn-download" id="downloadBtn">📥 엑셀 다운로드</button>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead id="tableHead"></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+
+        <div class="pagination" id="pagination"></div>
+    </div>
+</div>
+
+<script>
+    const ROWS_PER_PAGE = 20;
+    let tableData = { columns: [], rows: [], filename: '타이어입고등록.xlsx' };
+    let currentPage = 1;
+
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileInfo = document.getElementById('fileInfo');
+    const convertBtn = document.getElementById('convertBtn');
+    const statusEl = document.getElementById('status');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
+
+    function setFile(file) {
+        fileInput._file = file;
+        fileInfo.textContent = '✓ ' + file.name;
+        convertBtn.disabled = false;
+        statusEl.textContent = '';
+        document.getElementById('tableSection').style.display = 'none';
+    }
+
+    convertBtn.addEventListener('click', async () => {
+        const file = fileInput._file;
+        if (!file) return;
+        convertBtn.disabled = true;
+        statusEl.className = 'status loading';
+        statusEl.textContent = '처리 중... 더존 장소코드 조회 및 변환 중입니다';
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch('/preview', { method: 'POST', body: formData });
+            if (!res.ok) throw new Error('서버 오류: ' + res.status);
+            const data = await res.json();
+            tableData = { ...data, filename: data.filename || '타이어입고등록.xlsx' };
+            currentPage = 1;
+            renderWarnings(data.warnings || []);
+            updateSummary();
+            renderTable();
+            document.getElementById('tableSection').style.display = 'block';
+            statusEl.className = 'status';
+            statusEl.textContent = '';
+        } catch (e) {
+            statusEl.className = 'status error';
+            statusEl.textContent = '오류: ' + e.message;
+        } finally {
+            convertBtn.disabled = false;
+        }
+    });
+
+    function renderWarnings(warnings) {
+        const area = document.getElementById('warningsArea');
+        if (!warnings.length) { area.innerHTML = ''; return; }
+        area.innerHTML = '<div class="warnings"><h3>⚠️ 경고</h3><ul>'
+            + warnings.map(w => '<li>' + w + '</li>').join('') + '</ul></div>';
+    }
+
+    function updateSummary() {
+        const { columns, rows } = tableData;
+        const poIdx = columns.indexOf('PO_QT');
+        const amIdx = columns.indexOf('RCVH_AM');
+        document.getElementById('totalCount').textContent = rows.length + '건';
+        document.getElementById('totalQty').textContent =
+            rows.reduce((s, r) => s + (Number(r[poIdx]) || 0), 0).toLocaleString() + '개';
+        document.getElementById('totalAmount').textContent =
+            rows.reduce((s, r) => s + (Number(r[amIdx]) || 0), 0).toLocaleString() + '원';
+    }
+
+    function renderTable() {
+        const { columns, rows } = tableData;
+        document.getElementById('tableHead').innerHTML =
+            '<tr>' + columns.map(c => '<th>' + c + '</th>').join('') + '</tr>';
+
+        const start = (currentPage - 1) * ROWS_PER_PAGE;
+        const pageRows = rows.slice(start, start + ROWS_PER_PAGE);
+        const body = document.getElementById('tableBody');
+
+        body.innerHTML = pageRows.map((row, ri) => {
+            const abs = start + ri;
+            return '<tr>' + row.map((cell, ci) =>
+                '<td contenteditable="true" data-row="' + abs + '" data-col="' + ci + '">'
+                + (cell !== null && cell !== undefined ? String(cell) : '') + '</td>'
+            ).join('') + '</tr>';
+        }).join('');
+
+        body.querySelectorAll('td[contenteditable]').forEach(td => {
+            td.addEventListener('blur', () => {
+                tableData.rows[+td.dataset.row][+td.dataset.col] = td.textContent;
+                updateSummary();
+            });
+        });
+
+        renderPagination();
+    }
+
+    function renderPagination() {
+        const totalPages = Math.ceil(tableData.rows.length / ROWS_PER_PAGE);
+        const pag = document.getElementById('pagination');
+        if (totalPages <= 1) { pag.innerHTML = ''; return; }
+
+        const b = (label, page, disabled) =>
+            '<button class="page-btn" onclick="goPage(' + page + ')"'
+            + (disabled ? ' disabled' : '') + '>' + label + '</button>';
+
+        let html = b('«', 1, currentPage === 1) + b('‹', currentPage - 1, currentPage === 1);
+        const s = Math.max(1, currentPage - 2), e = Math.min(totalPages, s + 4);
+        for (let i = s; i <= e; i++)
+            html += '<button class="page-btn' + (i === currentPage ? ' active' : '')
+                + '" onclick="goPage(' + i + ')">' + i + '</button>';
+        html += b('›', currentPage + 1, currentPage === totalPages)
+            + b('»', totalPages, currentPage === totalPages)
+            + '<span class="page-info">' + tableData.rows.length + '건 / ' + totalPages + '페이지</span>';
+        pag.innerHTML = html;
+    }
+
+    function goPage(page) {
+        currentPage = page;
+        renderTable();
+        window.scrollTo({ top: document.getElementById('tableSection').offsetTop - 20, behavior: 'smooth' });
+    }
+
+    document.getElementById('downloadBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('downloadBtn');
+        btn.disabled = true;
+        btn.textContent = '생성 중...';
+        try {
+            const res = await fetch('/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rows: tableData.rows, filename: tableData.filename })
+            });
+            if (!res.ok) throw new Error('다운로드 실패');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = tableData.filename || '타이어입고등록.xlsx';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            alert('오류: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '📥 엑셀 다운로드';
+        }
+    });
+</script>
+</body>
+</html>
