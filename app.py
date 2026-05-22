@@ -1,9 +1,28 @@
 import io
 import csv
+import json
+import os
+import base64
 import openpyxl
+import requests as http_req
 from flask import Flask, request, jsonify, render_template, send_file
 
 app = Flask(__name__)
+
+CUSTOM_CODES_FILE = 'custom_codes.json'
+GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
+GITHUB_REPO  = os.environ.get('GITHUB_REPO', 'lily-my/tire-settlement')
+
+def load_custom_codes():
+    try:
+        with open(CUSTOM_CODES_FILE, encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {'TR_MAP': {}, 'LC_MAP': {}}
+
+_custom = load_custom_codes()
+CUSTOM_TR: dict = _custom.get('TR_MAP', {})
+CUSTOM_LC: dict = _custom.get('LC_MAP', {})
 
 TR_MAP = {
     '가정오토클럽': '4188146579',
@@ -55,6 +74,8 @@ TR_MAP = {
 }
 
 LC_MAP = {
+    '446945': 'AO63',
+    '547754': 'BF66',
     '196826': 'AQ06',
     '197132': 'AK10',
     '197373': 'AM27',
@@ -1151,8 +1172,8 @@ def convert_rows(csv_rows):
             continue
 
         rcv_dt = 발생일.replace('-', '')
-        tr_cd = TR_MAP.get(최종도매처, '')
-        lc_cd = LC_MAP.get(장소id, '')
+        tr_cd = TR_MAP.get(최종도매처) or CUSTOM_TR.get(최종도매처, '')
+        lc_cd = LC_MAP.get(장소id) or CUSTOM_LC.get(장소id, '')
 
         if not tr_cd:
             missing_tr.add(최종도매처)
@@ -1178,6 +1199,49 @@ def convert_rows(csv_rows):
         warnings.append(f'장소코드 없음: {nm}')
 
     return output_rows, warnings, filename
+
+
+def _push_to_github(data: dict):
+    if not GITHUB_TOKEN:
+        return
+    try:
+        headers = {
+            'Authorization': f'token {GITHUB_TOKEN}',
+            'Accept': 'application/vnd.github.v3+json',
+        }
+        url = f'https://api.github.com/repos/{GITHUB_REPO}/contents/{CUSTOM_CODES_FILE}'
+        r = http_req.get(url, headers=headers, timeout=10)
+        sha = r.json().get('sha') if r.ok else None
+
+        content = json.dumps(data, ensure_ascii=False, indent=2)
+        payload = {
+            'message': f'코드 추가: TR {len(data["TR_MAP"])}건 LC {len(data["LC_MAP"])}건',
+            'content': base64.b64encode(content.encode()).decode(),
+        }
+        if sha:
+            payload['sha'] = sha
+        http_req.put(url, headers=headers, json=payload, timeout=10)
+    except Exception as e:
+        print(f'GitHub push 실패: {e}')
+
+
+@app.route("/codes", methods=["GET"])
+def get_codes():
+    return jsonify({'TR_MAP': CUSTOM_TR, 'LC_MAP': CUSTOM_LC})
+
+
+@app.route("/codes", methods=["POST"])
+def add_codes():
+    data = request.get_json()
+    CUSTOM_TR.update(data.get('TR_MAP', {}))
+    CUSTOM_LC.update(data.get('LC_MAP', {}))
+
+    custom_data = {'TR_MAP': CUSTOM_TR, 'LC_MAP': CUSTOM_LC}
+    with open(CUSTOM_CODES_FILE, 'w', encoding='utf-8') as f:
+        json.dump(custom_data, f, ensure_ascii=False, indent=2)
+
+    _push_to_github(custom_data)
+    return jsonify({'ok': True})
 
 
 @app.route("/")

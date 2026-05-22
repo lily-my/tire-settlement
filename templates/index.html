@@ -58,8 +58,32 @@
             background: #ffeaa7; border: 1px solid #fdcb6e;
             border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;
         }
-        .warnings h3 { color: #e17055; font-size: 14px; margin-bottom: 4px; }
-        .warnings ul { color: #636e72; font-size: 13px; padding-left: 16px; }
+        .warnings h3 { color: #e17055; font-size: 14px; margin-bottom: 8px; }
+        .warnings ul { color: #636e72; font-size: 13px; padding-left: 16px; margin-bottom: 10px; }
+        .code-input-row {
+            display: flex; align-items: center; gap: 8px;
+            margin-bottom: 6px; flex-wrap: wrap;
+        }
+        .code-input-label { font-size: 13px; color: #2d3436; min-width: 180px; }
+        .code-input-label .badge {
+            display: inline-block; font-size: 11px; font-weight: 700;
+            padding: 1px 6px; border-radius: 4px; margin-right: 4px;
+        }
+        .badge-tr { background: #d63031; color: #fff; }
+        .badge-lc { background: #0984e3; color: #fff; }
+        .code-input-field {
+            border: 1px solid #b2bec3; border-radius: 6px;
+            padding: 5px 10px; font-size: 13px; width: 160px; outline: none;
+        }
+        .code-input-field:focus { border-color: #0984e3; }
+        .btn-save-codes {
+            background: #e17055; color: white; border: none;
+            border-radius: 8px; padding: 9px 22px;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: background 0.2s; margin-top: 8px;
+        }
+        .btn-save-codes:hover { background: #c0392b; }
+        .btn-save-codes:disabled { background: #b2bec3; cursor: not-allowed; }
 
         .summary { display: flex; gap: 16px; margin-bottom: 16px; }
         .summary-card {
@@ -242,8 +266,103 @@
     function renderWarnings(warnings) {
         const area = document.getElementById('warningsArea');
         if (!warnings.length) { area.innerHTML = ''; return; }
-        area.innerHTML = '<div class="warnings"><h3>⚠️ 경고</h3><ul>'
-            + warnings.map(w => '<li>' + w + '</li>').join('') + '</ul></div>';
+
+        const missingTR = [], missingLC = [];
+        const otherWarnings = [];
+
+        warnings.forEach(w => {
+            const trM = w.match(/^거래처코드 없음: (.+)$/);
+            const lcM = w.match(/^장소코드 없음: (.+)\((\d+)\)$/);
+            if (trM) missingTR.push({ name: trM[1] });
+            else if (lcM) missingLC.push({ name: lcM[1], id: lcM[2] });
+            else otherWarnings.push(w);
+        });
+
+        let html = '<div class="warnings"><h3>⚠️ 코드 없음 — 아래에 더존 코드를 입력하고 저장하세요</h3>';
+
+        if (otherWarnings.length) {
+            html += '<ul>' + otherWarnings.map(w => '<li>' + w + '</li>').join('') + '</ul>';
+        }
+
+        const inputs = [];
+        missingTR.forEach(item => {
+            const id = 'inp_tr_' + encodeURIComponent(item.name);
+            inputs.push({ type: 'TR', key: item.name, id });
+            html += '<div class="code-input-row">'
+                + '<span class="code-input-label"><span class="badge badge-tr">거래처</span>' + item.name + '</span>'
+                + '<input class="code-input-field" id="' + id + '" placeholder="거래처코드 (숫자 10자리)" data-type="TR" data-key="' + item.name.replace(/"/g, '&quot;') + '">'
+                + '</div>';
+        });
+        missingLC.forEach(item => {
+            const id = 'inp_lc_' + item.id;
+            inputs.push({ type: 'LC', key: item.id, id });
+            html += '<div class="code-input-row">'
+                + '<span class="code-input-label"><span class="badge badge-lc">장소</span>' + item.name + ' (' + item.id + ')</span>'
+                + '<input class="code-input-field" id="' + id + '" placeholder="장소코드 (예: AO63)" data-type="LC" data-key="' + item.id + '">'
+                + '</div>';
+        });
+
+        if (inputs.length) {
+            html += '<button class="btn-save-codes" id="saveCodesBtn" onclick="saveCodes()">💾 저장 후 재변환</button>';
+        }
+
+        html += '</div>';
+        area.innerHTML = html;
+    }
+
+    async function saveCodes() {
+        const btn = document.getElementById('saveCodesBtn');
+        if (!btn) return;
+        btn.disabled = true;
+        btn.textContent = '저장 중...';
+
+        const TR_MAP = {}, LC_MAP = {};
+        document.querySelectorAll('.code-input-field').forEach(inp => {
+            const v = inp.value.trim();
+            if (!v) return;
+            if (inp.dataset.type === 'TR') TR_MAP[inp.dataset.key] = v;
+            else if (inp.dataset.type === 'LC') LC_MAP[inp.dataset.key] = v;
+        });
+
+        if (!Object.keys(TR_MAP).length && !Object.keys(LC_MAP).length) {
+            btn.disabled = false;
+            btn.textContent = '💾 저장 후 재변환';
+            alert('입력된 코드가 없습니다.');
+            return;
+        }
+
+        try {
+            const saveRes = await fetch('/codes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ TR_MAP, LC_MAP })
+            });
+            if (!saveRes.ok) throw new Error('코드 저장 실패');
+
+            const file = fileInput._file;
+            if (!file) throw new Error('원본 파일이 없습니다. 다시 업로드 해주세요.');
+
+            statusEl.className = 'status loading';
+            statusEl.textContent = '저장 완료. 재변환 중...';
+
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch('/preview', { method: 'POST', body: formData });
+            if (!res.ok) throw new Error('서버 오류: ' + res.status);
+            const data = await res.json();
+            tableData = { ...data, filename: data.filename || '타이어입고등록.xlsx' };
+            currentPage = 1;
+            renderWarnings(data.warnings || []);
+            updateSummary();
+            renderTable();
+            statusEl.className = 'status';
+            statusEl.textContent = '';
+        } catch (e) {
+            statusEl.className = 'status error';
+            statusEl.textContent = '오류: ' + e.message;
+            btn.disabled = false;
+            btn.textContent = '💾 저장 후 재변환';
+        }
     }
 
     function updateSummary() {
