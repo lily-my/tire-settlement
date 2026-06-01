@@ -4,6 +4,7 @@ import json
 import os
 import base64
 import openpyxl
+import xlsxwriter
 import requests as http_req
 from flask import Flask, request, jsonify, render_template, send_file
 
@@ -3265,18 +3266,25 @@ def download():
     rows = data.get("rows", [])
     filename = data.get("filename", "타이어입고등록.xlsx")
 
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "시트1"
-    ws.append(HEADER_KO)
-    ws.append(HEADER_EN)
-    ws.append(HEADER_DESC)
-
-    for row in rows:
-        ws.append(row)
-
     buf = io.BytesIO()
-    wb.save(buf)
+    wb = xlsxwriter.Workbook(buf, {'in_memory': True})
+    ws = wb.add_worksheet('시트1')
+
+    for col, val in enumerate(HEADER_KO):
+        ws.write(0, col, val)
+    for col, val in enumerate(HEADER_EN):
+        ws.write(1, col, val)
+    for col, val in enumerate(HEADER_DESC):
+        ws.write(2, col, val)
+
+    for row_idx, row in enumerate(rows):
+        for col_idx, val in enumerate(row):
+            if isinstance(val, str):
+                ws.write_string(row_idx + 3, col_idx, val)
+            else:
+                ws.write_number(row_idx + 3, col_idx, val)
+
+    wb.close()
     buf.seek(0)
     return send_file(
         buf,
