@@ -3167,6 +3167,9 @@ def convert_rows(csv_rows):
         except (ValueError, IndexError):
             continue
 
+        if 합계금액 == 0:
+            continue
+
         rcv_dt = 발생일.replace('-', '')
         tr_cd = TR_MAP.get(최종도매처) or CUSTOM_TR.get(최종도매처, '')
         lc_cd = LC_MAP.get(장소id) or CUSTOM_LC.get(장소id, '')
