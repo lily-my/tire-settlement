@@ -3267,7 +3267,7 @@ def download():
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "입고등록"
+    ws.title = "시트1"
     ws.append(HEADER_KO)
     ws.append(HEADER_EN)
     ws.append(HEADER_DESC)
