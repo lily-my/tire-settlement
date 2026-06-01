@@ -3183,7 +3183,7 @@ def convert_rows(csv_rows):
         output_rows.append([
             '0', rcv_dt, tr_cd, 'KRW', 1, '0', '0', 'A001',
             f'{rcv_dt}_{최종도매처}_배송장착',
-            f'{상품명}_{사이즈}',
+            f'{상품명}_{사이즈}' if 사이즈 else 상품명,
             수량, 수량, rcvg_am, rcvg_am, rcvv_am, rcvh_am,
             lc_cd,
             f'{예약id} / {장소명} ({장소id}) / 배송장착',
