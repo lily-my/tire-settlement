@@ -3273,14 +3273,7 @@ def download():
     ws.append(HEADER_DESC)
 
     for row in rows:
-        typed = []
-        for v in row:
-            try:
-                fv = float(str(v))
-                typed.append(int(fv) if fv == int(fv) else fv)
-            except (ValueError, TypeError):
-                typed.append(v)
-        ws.append(typed)
+        ws.append(row)
 
     buf = io.BytesIO()
     wb.save(buf)
