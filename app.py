@@ -3104,7 +3104,7 @@ LC_MAP = {
 HEADER_KO = ['거래구분','입고일자','거래처코드','환종','환율','과세구분','단가구분','창고코드','비고(건)','품번','관리단위수량','재고단위수량','부가세미포함단가','공급가','부가세','합계액','장소코드','비고(내역)']
 HEADER_EN = ['PO_FG','RCV_DT','TR_CD','EXCH_CD','EXCH_RT','VAT_FG','UMVAT_FG','WH_CD','REMARK_DC','ITEM_CD','PO_QT','RCV_QT','RCV_UM','RCVG_AM','RCVV_AM','RCVH_AM','LC_CD','REMARKD_DC']
 HEADER_DESC = [
-    '타입 : 문자\n길이 : 1\n필수 : True\n설명 : 숫자만 입력하세요. (0.DOMESTIC)',
+    '타입 : 문자\n길이 : 1\n필수 : True\n설명 : 숫자만 입력하세요. (0.DOMESTIC, 1.LOCAL L/C, 2.구매승인서, 3.MASTER L/C, 4.T/T, 5.D/A, 6.D/P)',
     '타입 : 날짜\n길이 : 8\n필수 : True\n설명 : 숫자 기준 8자리를 입력 하세요.',
     '타입 : 문자\n길이 : 10\n필수 : True\n설명 : 영문/숫자 기준 10자리(최대)를 입력 하세요.',
     '타입 : 코드\n길이 : 4\n필수 : True\n설명 : 영문/숫자 기준 4자리(최대)를 입력 하세요.',
